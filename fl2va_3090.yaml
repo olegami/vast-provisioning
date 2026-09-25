@@ -1,0 +1,49 @@
+# MiniMax H3 — FL2VA (T2V / I2V), профиль RTX 3090 (24 GB VRAM)
+#
+# Манифест для встроенного провижинера шаблона vastai/comfy
+# (передаётся ботом в переменной PROVISIONING_MANIFEST).
+# Набор файлов — тот же, на который ссылаются официальные шаблоны
+# Comfy-Org (video_minimax_h3_t2v / i2v): pruned INT8 + NVFP4-энкодер.
+# Плюс turbo-LoRA 4 и 8 шагов (подключаются в графе вручную).
+#
+# Объём моделей: ~46.4 GB (20.97 + 15.69 + 5.21 + 0.61 + 2 × 1.96).
+# Источник: https://huggingface.co/Comfy-Org/MiniMax-H3 (без токена).
+
+version: 1
+
+settings:
+  concurrency:
+    hf_downloads: 3
+
+on_failure:
+  action: continue
+  max_retries: 3
+  retry_delay: 30
+
+downloads:
+  # диффузионная модель
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors
+
+  # текстовый энкодер
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
+
+  # VAE: видео и звук (без audio VAE видео будет без звука)
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/vae/minimax_h3_video_vae_fp16.safetensors
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/vae/minimax_h3_audio_vae_fp32.safetensors
+
+  # turbo-LoRA: 4 шага — черновики, 8 шагов — баланс скорость/качество
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/loras/minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors
+
+  # официальные шаблоны workflow Comfy-Org — кладём файлами, без расширения
+  # provisioner_comfyui (оно само докачивало бы модели из графа, неконтролируемо)
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_minimax_h3_t2v.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_T2V.json
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_minimax_h3_i2v.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_I2V.json
