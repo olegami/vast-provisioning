@@ -1,0 +1,53 @@
+# MiniMax H3 — FL2VA (T2V / I2V), профиль H100 (80 GB VRAM) и выше
+#
+# Манифест для встроенного провижинера шаблона vastai/comfy
+# (передаётся ботом в переменной PROVISIONING_MANIFEST).
+# Без квантования: pruned BF16-модель + BF16-энкодер (по исследованию —
+# вариант «максимум качества»; нужно ≥ 128 GB RAM хоста).
+# Turbo-LoRA 8 шагов — для быстрых прогонов (подключается в графе вручную).
+#
+# Официальные шаблоны ссылаются на INT8/NVFP4-файлы — после скачивания
+# post_commands переписывают имена файлов в шаблонах на BF16-версии.
+#
+# Объём моделей: ~99.5 GB (40.23 + 51.51 + 5.21 + 0.61 + 1.96).
+# Источник: https://huggingface.co/Comfy-Org/MiniMax-H3 (без токена).
+
+version: 1
+
+settings:
+  concurrency:
+    hf_downloads: 3
+
+on_failure:
+  action: continue
+  max_retries: 3
+  retry_delay: 30
+
+downloads:
+  # диффузионная модель
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/diffusion_models/minimax_h3_fl2va_pruned_bf16.safetensors
+
+  # текстовый энкодер
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/text_encoders/qwen3vl_32b_minimax_h3_bf16.safetensors
+
+  # VAE: видео и звук
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/vae/minimax_h3_video_vae_fp16.safetensors
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/vae/minimax_h3_audio_vae_fp32.safetensors
+
+  # turbo-LoRA 8 шагов
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors
+
+  # официальные шаблоны workflow Comfy-Org (исходно под INT8/NVFP4)
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_minimax_h3_t2v.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_T2V_H100.json
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_minimax_h3_i2v.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_I2V_H100.json
+
+post_commands:
+  # переключить шаблоны на BF16-файлы (имя в загрузчике и в properties.models)
+  - "sed -i -e 's/minimax_h3_fl2va_pruned_int8_convrot/minimax_h3_fl2va_pruned_bf16/g' -e 's/qwen3vl_32b_minimax_h3_nvfp4_awq/qwen3vl_32b_minimax_h3_bf16/g' ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_T2V_H100.json ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_I2V_H100.json"
