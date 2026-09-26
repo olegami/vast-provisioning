@@ -1,0 +1,28 @@
+# Тестовый профиль: самый дешёвый инстанс + SDXL-turbo (картинки)
+#
+# Назначение — многократные дешёвые прогоны развёртывания и бота:
+# тот же путь, что у боевых профилей (фильтры → PROVISIONING_MANIFEST →
+# встроенный провижинер → ComfyUI), но модель ~7 GB вместо 46–100 GB.
+# SDXL-turbo генерирует картинку за 1 шаг — удобно быстро проверить GPU.
+#
+# Объём: ~6.9 GB. Источник: https://huggingface.co/stabilityai/sdxl-turbo
+# (без токена — проверено: шаблон по умолчанию качал этот же файл).
+
+version: 1
+
+settings:
+  concurrency:
+    hf_downloads: 3
+
+on_failure:
+  action: continue
+  max_retries: 3
+  retry_delay: 30
+
+downloads:
+  - url: https://huggingface.co/stabilityai/sdxl-turbo/resolve/main/sd_xl_turbo_1.0_fp16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/checkpoints/sd_xl_turbo_1.0_fp16.safetensors
+
+  # официальный шаблон Comfy-Org под SDXL-turbo
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/sdxlturbo_example.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Test_SDXL_Turbo.json
