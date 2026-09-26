@@ -51,3 +51,7 @@ downloads:
 post_commands:
   # переключить шаблоны на BF16-файлы (имя в загрузчике и в properties.models)
   - "sed -i -e 's/minimax_h3_fl2va_pruned_int8_convrot/minimax_h3_fl2va_pruned_bf16/g' -e 's/qwen3vl_32b_minimax_h3_nvfp4_awq/qwen3vl_32b_minimax_h3_bf16/g' ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_T2V_H100.json ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/MiniMax_H3_I2V_H100.json"
+  # интерфейс ComfyUI на английском: дописываем Comfy.Locale в настройки,
+  # не затирая остальные (если файла нет — создаём)
+  - |
+    /venv/main/bin/python -c "import json, os, pathlib; p = pathlib.Path(os.environ.get('WORKSPACE', '/workspace')) / 'ComfyUI/user/default/comfy.settings.json'; d = json.loads(p.read_text()) if p.exists() else {}; d['Comfy.Locale'] = 'en'; p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps(d, indent=2))"
