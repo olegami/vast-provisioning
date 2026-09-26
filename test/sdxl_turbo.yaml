@@ -26,3 +26,9 @@ downloads:
   # официальный шаблон Comfy-Org под SDXL-turbo
   - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/sdxlturbo_example.json
     dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Test_SDXL_Turbo.json
+
+post_commands:
+  # интерфейс ComfyUI на английском: дописываем Comfy.Locale в настройки,
+  # не затирая остальные (если файла нет — создаём)
+  - |
+    /venv/main/bin/python -c "import json, os, pathlib; p = pathlib.Path(os.environ.get('WORKSPACE', '/workspace')) / 'ComfyUI/user/default/comfy.settings.json'; d = json.loads(p.read_text()) if p.exists() else {}; d['Comfy.Locale'] = 'en'; p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps(d, indent=2))"
