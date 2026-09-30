@@ -1,0 +1,102 @@
+# MiniMax H3 — FL2VA, H100 КАСТОМНЫЙ (рабочий профиль для доработки графа)
+#
+# Цель: 1080p и 48 fps внутри одного графа (исследование №2,
+# claude/minimax_research_2.md). Классический профиль — h3/fl2va_h100.yaml
+# (его не трогаем); этот — тестовый стенд, меняется по ходу замеров.
+#
+# Состав = классический H100 (BF16-модель, BF16-энкодер, VAE, turbo-LoRA 8)
+# плюс:
+#   - латентный апскейлер H3 (LBH-123-AI) + его кастомная нода — основной путь 1080p
+#     (апскейл латента → второй короткий проход той же H3);
+#   - SeedVR2 7B и 3B int8 + VAE — запасной путь 1080p, для сравнения на одном клипе;
+#   - RIFE 4.26 и FILM — интерполяция 24 → 48 fps (FrameInterpolate ×2, ядро ComfyUI);
+#   - шаблоны: T2V/I2V (BF16), интерполяция, SeedVR2, пример LBH (двухпроходный I2V).
+# Ноды интерполяции и SeedVR2 — в ядре ComfyUI 0.35.0, кастомных не нужно.
+# Не ставим: GIMM-VFI и Fannovel16 (тянут cupy-cuda12x — конфликт с образом cu130).
+#
+# Объём: ~112.6 GB (99.5 классических + 0.69 апскейлер + 0.09 RIFE/FILM
+# + 8.33 SeedVR2 7B + 3.46 SeedVR2 3B + 0.50 VAE SeedVR2).
+# Ссылки и размеры — из исследования №2 (по страницам HF), живым запуском
+# ещё не проверены. on_failure: continue — отсутствующий файл не валит
+# провижининг, смотреть /var/log/portal/provisioning.log.
+
+version: 1
+
+settings:
+  concurrency:
+    hf_downloads: 3
+
+on_failure:
+  action: continue
+  max_retries: 3
+  retry_delay: 30
+
+# кастомные ноды (фаза 4 — до загрузки моделей)
+git_repos:
+  # латентный апскейлер H3: MinimaxH3LatentUpscaler3D, MMH3 Split Upscale (окна для 10 с);
+  # requirements нет — torch/safetensors из ComfyUI
+  - url: https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler
+    # dest — буквальный путь: подстановка ${WORKSPACE} проверена вживую только в downloads
+    dest: /workspace/ComfyUI/custom_nodes/Comfyui_Minimax_h3_latent_Upscaler
+    ref: 40316cf
+    post_commands:
+      # пример автора (I2V, два прохода) — в список workflow под понятным именем
+      - "mkdir -p ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows && cp 'workflow_templates/minimax_h3_i2v_Latent Upscaler example workflow2.json' ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Custom_LBH_I2V_LatentUpscale_example.json || echo 'WARN: пример LBH не найден'"
+
+downloads:
+  # --- база: как в классическом H100 ---
+  # диффузионная модель
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/diffusion_models/minimax_h3_fl2va_pruned_bf16.safetensors
+
+  # текстовый энкодер
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/text_encoders/qwen3vl_32b_minimax_h3_bf16.safetensors
+
+  # VAE: видео и звук
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/vae/minimax_h3_video_vae_fp16.safetensors
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/vae/minimax_h3_audio_vae_fp32.safetensors
+
+  # turbo-LoRA 8 шагов
+  - url: https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors
+
+  # --- 1080p, основной путь: латентный апскейлер H3 (Apache-2.0) ---
+  - url: https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler/resolve/main/minimax_h3_latent_upscaler_3d_conv_v1/minimax_h3_latent_upscaler_3d_conv_v1_bf16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/latent_upscale_models/minimax_h3_latent_upscaler_3d_conv_v1_bf16.safetensors
+
+  # --- 1080p, запасной путь: SeedVR2 (7B и 3B int8 — сравнить) ---
+  - url: https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_7b_int8_convrot.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/diffusion_models/seedvr2_7b_int8_convrot.safetensors
+  - url: https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_3b_int8_convrot.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/diffusion_models/seedvr2_3b_int8_convrot.safetensors
+  - url: https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/seedvr2_ema_vae_fp16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/vae/seedvr2_ema_vae_fp16.safetensors
+
+  # --- 48 fps: интерполяция (FrameInterpolate ×2, ядро) ---
+  - url: https://huggingface.co/Comfy-Org/frame_interpolation/resolve/main/frame_interpolation/rife_v4.26.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/frame_interpolation/rife_v4.26.safetensors
+  - url: https://huggingface.co/Comfy-Org/frame_interpolation/resolve/main/frame_interpolation/film_net_fp16.safetensors
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/models/frame_interpolation/film_net_fp16.safetensors
+
+  # --- шаблоны workflow ---
+  # официальные H3 (исходно под INT8/NVFP4 — переключаются на BF16 в post_commands)
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_minimax_h3_t2v.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Custom_H3_T2V.json
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_minimax_h3_i2v.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Custom_H3_I2V.json
+  # официальные утилиты: интерполяция и SeedVR2 (имена — из исследования №2, не проверены)
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/utility_video_frame_interpolation.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Custom_Util_Interpolation.json
+  - url: https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/utility_seedvr2_3b_int8_upscale_video.json
+    dest: ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Custom_Util_SeedVR2_3B.json
+
+post_commands:
+  # переключить шаблоны H3 на BF16-файлы (имя в загрузчике и в properties.models)
+  - "sed -i -e 's/minimax_h3_fl2va_pruned_int8_convrot/minimax_h3_fl2va_pruned_bf16/g' -e 's/qwen3vl_32b_minimax_h3_nvfp4_awq/qwen3vl_32b_minimax_h3_bf16/g' ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Custom_H3_T2V.json ${WORKSPACE:-/workspace}/ComfyUI/user/default/workflows/Custom_H3_I2V.json"
+  # интерфейс ComfyUI на английском: дописываем Comfy.Locale в настройки,
+  # не затирая остальные (если файла нет — создаём)
+  - |
+    /venv/main/bin/python -c "import json, os, pathlib; p = pathlib.Path(os.environ.get('WORKSPACE', '/workspace')) / 'ComfyUI/user/default/comfy.settings.json'; d = json.loads(p.read_text()) if p.exists() else {}; d['Comfy.Locale'] = 'en'; p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps(d, indent=2))"
