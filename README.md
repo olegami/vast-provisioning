@@ -14,6 +14,7 @@
 |---|---|---|---|
 | `h3/fl2va_3090.yaml` | `minimax_3h_3090` | MiniMax H3 FL2VA pruned INT8, энкодер NVFP4, VAE, turbo-LoRA 4/8 шагов, шаблоны T2V/I2V | ~46 GB |
 | `h3/fl2va_h100.yaml` | `minimax_3h_h100` | MiniMax H3 FL2VA pruned BF16, энкодер BF16, VAE, turbo-LoRA 8 шагов, шаблоны T2V/I2V (переключены на BF16) | ~100 GB |
+| `h3/fl2va_h100_custom.yaml` | `minimax_3h_h100_custom` | Кастомный стенд H100: всё из `fl2va_h100` + латентный апскейлер H3 (нода LBH), SeedVR2 7B/3B int8, RIFE 4.26 / FILM, шаблоны интерполяции и SeedVR2 — 1080p / 48 fps, меняется по ходу замеров | ~113 GB |
 | `test/sdxl_turbo.yaml` | `test_cheap` | SDXL-turbo + шаблон — дешёвые тестовые прогоны развёртывания и бота | ~7 GB |
 
 Ссылка для бота: `https://raw.githubusercontent.com/olegami/vast-provisioning/main/<папка>/<файл>.yaml`
